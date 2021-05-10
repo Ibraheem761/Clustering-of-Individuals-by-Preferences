@@ -1,0 +1,382 @@
+---
+title: '**Dimensionality Reduction & Clustering Project**'
+author: '**Ibraheem El Ansari**'
+date: "March 3rd 2021"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '5'
+  pdf_document:
+    latex_engine: xelatex
+    toc: yes
+    toc_depth: 5
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+\pagebreak
+
+## **Importing the packages needed for the analysis**
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(FactoMineR)
+library(factoextra)
+library(ggplot2)
+library(ca)
+library(knitr)
+library(fastcluster)
+library(dendextend) 
+```
+
+## Importing Data (45 x 6)
+
+```{r df, warning=FALSE}
+df <- read.csv2('Data_MCA.csv')
+kable(head(df))
+```
+
+### Variables and survey description 
+
+This survey was intended for Moroccan university students ( My classmates ), the aim of which is to test some trends that I have observed regarding their preferences in music, language, and place of work for men and women in two age categories. 
+
+The survey consisted of five (5) closed questions where each constitutes the data of one variable.
+
+The following list associates each variable with its respective question in the questionnaire, as well as the possible answers, i.e. the variable categories
+
+- **Age :** Age category ? -- *More than 30 years*, *Less than 30 years*
+
+- **Gender:** Gender ? -- *Male*, *Female*
+
+- **Language :** Favorite Language ? -- *ِArabic*, *French*, *English*
+
+- **Music :** Favorite musical Genre ? -- *Traditional*, *Western* 
+
+- **Work :** Where would you like to work after graduation? -- *Morocco*, *Abroad*, *Indifferent* 
+
+
+### Variables' Barplots 
+
+Barplots are the most widely used diagrams in descriptive statistics of qualitative variables since they make it possible to visualize each category.
+
+```{r include=FALSE}
+df=df[,2:6]
+df=data.frame(as.factor(df[,1]),as.factor(df[,2]),as.factor(df[,3]),as.factor(df[,4]),as.factor(df[,5]))
+colnames(df) <- c("Age","Gender","Language","Music","Work")
+```
+
+
+```{r figure-side, fig.show='hold', message=FALSE, warning=FALSE, out.width="33%"}
+plot(df[,1],main="Age",col=c("deepskyblue3","skyblue"))
+plot(df[,2],main="Gender",col=c("skyblue","deepskyblue3"))
+plot(df[,3],main="Language",col=c("deepskyblue3","deepskyblue4","skyblue"))
+plot(df[,4],main="Music",col=c("skyblue","deepskyblue3"))
+plot(df[,5],main="Work",col=c("skyblue","deepskyblue3","deepskyblue4"))
+```
+
+## **Multiple Correspondence Analysis (MCA)**
+
+Multiple Correspondence Analysis (MCA) is an extension of Simple Correspondence Analysis to summarize and visualize a table of data containing more than two categorical variables.
+
+MCA is typically used to analyze a set of data from a survey. The goal is to identify:
+
+- A group of individuals with a similar profile in their answers to the questions.
+
+- Associations between categories of variables.
+
+### Burt Table
+
+The Burt Table is a symmetric table used in correspondence analysis (Simple and Multiple). The Table crosses the variable categories with each other and with themselves.
+
+![](C:/Users/Ibraheem/Documents/Burt5.PNG)\
+
+
+### Eigen values - Explained variability
+
+```{r}
+MCA_ca=mjca(df)
+```
+
+```{r eval=FALSE}
+MCA_factominer=MCA(df,ncp=5,graph=F)
+fviz_screeplot(MCA_factominer, addlabels = TRUE, ylim = c(0, 100))
+```
+
+```{r echo=FALSE,fig.align='center', fig.height=3, fig.width=4, warning=FALSE}
+cats = apply(df, 2, function(x) nlevels(as.factor(x)))
+ACM_vars_df = data.frame(MCA_ca$colcoord, Variable = rep(names(cats),cats))
+rownames(ACM_vars_df) = MCA_ca$levelnames
+x1="Dim1 (83.65%)"
+x2="Dim2 (0.89%)"
+#variance explained
+varExp = MCA_ca$inertia.e*100
+varDF = data.frame(Dimensions=1:length(varExp),varExp=varExp)
+Name=c('83.65%','0.89%','0.15%')
+ggplot(varDF,aes(x=Dimensions,y=varExp)) + geom_point() + geom_text(aes(label=Name),hjust=0.5, vjust=-0.5) +
+geom_col(fill="steelblue") + geom_line() + 
+theme_bw() + scale_x_continuous(breaks=1:nrow(varDF))  +  ggtitle("Scree plot") + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.title = element_text(size=10)) +
+ylim(c(0,100)) + ylab("Adjusted Inertia (%)")
+```
+
+The sum of the adjusted inertias of the five dimensions equals 100%.
+
+The factorial axis F1 explains 83.65% of the total variability, and F2 a small percentage of 0.89%, from where we can proceed to the analysis of the variables and the individuals based **only** on the interpretation of the F1 axis since it is the only holder of real information.
+
+### Biplot of individuals and variable categories
+
+```{r eval=FALSE}
+fviz_mca_biplot(ACM_factominer,repel=TRUE,ggtheme=theme_minimal())
+```
+
+```{r echo=FALSE,fig.align='center', fig.height=5, fig.width=11, warning=FALSE}
+ACM_factominer=MCA(df,ncp=5,graph=F)
+a = fviz_mca_biplot(ACM_factominer,repel=TRUE,
+                    ggtheme=theme_minimal())
+a + labs(title = "Biplot of individuals and variable categories", x='Dim1 (83.65%)', y='Dim2 (0.89%)') + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.title = element_text(size=18)) + theme(axis.title = element_text(size=16))
+```
+
+The factorial axis F1 opposes individuals such as <span style="color:blue">16, 17, 25</span>
+and <span style="color:blue">30</span> (to the right of the graph, characterized by a strongly positive coordinate on the axis) to individuals such as <span style="color:blue">5, 21, 11</span> and <span style="color:blue">36</span> (on the left of the graph, characterized by a strongly negative coordinate on the axis).
+
+The group in which the individuals <span style="color:blue">16, 17, 25</span> and <span style="color:blue">30</span> stands is sharing:
+
+- Language preference :  <span style="color:red">English</span>  
+- Preference for music : <span style="color:red">Western</span> 
+- Preference for working : <span style="color:red">Abroad</span> 
+
+The group in which the individuals <span style="color:blue">5, 21, 11</span> and <span style="color:blue">36</span> stands is sharing:
+
+- Language preference : <span style="color:red">Arabic</span>  
+- Preference for music : <span style="color:red">Traditional</span>  
+- Preference for working in : <span style="color:red">Morocco</span>  
+
+### Variables' Biplot
+
+```{r eval=FALSE}
+fviz_mca_var(MCA_factominer, choice='mca.cor',repel=TRUE,ggtheme=theme_minimal())
+```
+
+```{r echo=FALSE,fig.align='center', fig.height=5, fig.width=11, warning=FALSE}
+MCA_factominer=MCA(df,ncp=5,graph=F)
+a = fviz_mca_var(MCA_factominer, choice='mca.cor',repel=TRUE,ggtheme=theme_minimal())
+a + labs(title = "Variables' Biplot", x='Dim1 (83.65%)', y='Dim2 (0.89%)') + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.title = element_text(size=18)) + theme(axis.title = element_text(size=16))
+```
+
+The graph above helps to identify the variables most correlated with each dimension.
+We see that the <span style="color:red">Language</span> and <span style="color:red">Music</span>  variables are the most correlated with the factorial axis F1.
+
+
+### Biplot of variable categories 
+
+
+```{r eval=FALSE}
+fviz_mca_var(MCA_factominer,repel=TRUE,ggtheme=theme_minimal())
+```
+
+```{r echo=FALSE,fig.align='center', fig.height=5, fig.width=11, warning=FALSE}
+MCA_factominer=MCA(df,ncp=5,graph=F)
+a = fviz_mca_var(MCA_factominer, repel=TRUE,ggtheme=theme_minimal())
+a + labs(title = "Biplot of variable categories", x='Dim1 (83.65%)', y='Dim2 (0.89%)') + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.title = element_text(size=18)) + theme(axis.title = element_text(size=16))
+```
+
+Variable categories with a similar profile are grouped together.
+The categories of negatively correlated variables are positioned on opposite sides of the origin of the plot.
+
+This graph groups together categories such as:
+
+- Preference for the <span style="color:red">French</span> and <span style="color:red">English</span>  language, as well as <span style="color:red">Western</span>  music.
+- Preference for the <span style="color:red">Arabic</span> language and <span style="color:red">traditional</span> music.
+
+It also opposes the categories of work in <span style="color:red">Morocco</span> or <span style="color:red">Abroad</span>.
+
+### Quality of representation of variable categories - Biplot
+
+```{r eval=FALSE}
+fviz_mca_var(MCA_factominer, 
+             col.var='cos2', gradient.cols=c("#00AFBB","#E7B700","#FC4E07"),
+repel=TRUE,ggtheme=theme_minimal())
+```
+
+```{r echo=FALSE,fig.align='center', fig.height=5, fig.width=11, warning=FALSE}
+MCA_factominer=MCA(df,ncp=5,graph=F)
+a = fviz_mca_var(MCA_factominer, col.var='cos2', gradient.cols=c("#00AFBB","#E7B700","#FC4E07"),repel=TRUE,ggtheme=theme_minimal())
+a + labs(title = "Quality of representation of variable categories - Biplot", x='Dim1 (83.65%)', y='Dim2 (0.89%)') + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.title = element_text(size=18)) + theme(axis.title = element_text(size=16))
+```
+
+The quality of the representation is called the squared cosine ($Cos^{2}$), which measures the degree of association between variable categories and a particular axis. We are still going to interpret only the factorial axis F1.
+ 
+- Variable categories with low $Cos^{2}$ values will be in "white" (None).
+- Variable categories with average values of $Cos^{2}$ will be in "blue" <span style="color:blue">Work-Indifferent</span> 
+- Variable categories with high $Cos^{2}$ values will be in "red" <span style="color:red">Language-Arabic</span>  
+
+### Quality of representation of variable categories on both dimensions - $Cos^{2}$
+
+```{r ,fig.show='hold',fig.height=5, fig.width=5, out.width="50%"}
+fviz_cos2(MCA_factominer, choice = "var", axes = 1)
+fviz_cos2(MCA_factominer, choice = "var", axes = 2)
+```
+
+The categories of variables with the highest contribution value contribute the most to the definition of the dimensions and are the most important in explaining the variability of the dataset.
+
+The graph on the right clearly explains the value of interpreting only the factorial axis F1, because almost all variables are poorly represented on F2.
+
+The graph to the left of the F1 axis shows that the Work-Indifferent modality is not well represented, so it must be interpreted with caution or put aside.
+
+
+### Contribution of variable categories to dimensions 
+
+```{r eval=FALSE}
+fviz_mca_var(MCA_factominer, 
+             col.var='contrib', gradient.cols=c("#00AFBB","#E7B700","#FC4E07"),
+             repel=TRUE,
+             ggtheme=theme_minimal())
+```
+
+```{r echo=FALSE,fig.align='center', fig.height=5, fig.width=11, warning=FALSE}
+MCA_factominer=MCA(df,ncp=5,graph=F)
+a = fviz_mca_var(MCA_factominer, col.var='contrib', gradient.cols=c("#00AFBB","#E7B700","#FC4E07"),repel=TRUE,
+                 ggtheme=theme_minimal())
+a + labs(title = "Contribution of variable categories to dimensions  
+", x='Dim1 (83.65%)', y='Dim2 (0.89%)') + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.title = element_text(size=18)) + theme(axis.title = element_text(size=16))
+```
+
+The most important (contributing) variable categories are highlighted on the graph the same way as the $Cos^{2}$ (previous graph).
+
+### Individuals' Contribution to dimensions
+
+```{r eval=FALSE}
+fviz_mca_ind(MCA_factominer, 
+             col.ind='contrib', gradient.cols=c("#00AFBB","#E7B700","#FC4E07"),
+             repel=TRUE,
+             ggtheme=theme_minimal())
+```
+
+```{r echo=FALSE,fig.align='center', fig.height=5, fig.width=11, warning=FALSE}
+MCA_factominer=MCA(df,ncp=5,graph=F)
+a = fviz_mca_ind(MCA_factominer, col.ind='contrib', gradient.cols=c("#00AFBB","#E7B700","#FC4E07"),repel=TRUE,
+                 ggtheme=theme_minimal())
+a + labs(title = "Individuals' Contribution to dimensions", x='Dim1 (83.65%)', y='Dim2 (0.89%)') + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.title = element_text(size=18)) + theme(axis.title = element_text(size=16))
+```
+
+Like variable categories, it is also possible to represent individuals by their contribution values.
+
+### Individuals' Contribution to dimensions - $Cos^{2}$
+
+```{r eval=FALSE}
+fviz_mca_ind(MCA_factominer, 
+             col.ind='cos2', gradient.cols=c("#00AFBB","#E7B700","#FC4E07"),
+             repel=TRUE,
+             ggtheme=theme_minimal())
+```
+
+```{r echo=FALSE,fig.align='center', fig.height=5, fig.width=11, warning=FALSE}
+MCA_factominer=MCA(df,ncp=5,graph=F)
+a = fviz_mca_ind(MCA_factominer, col.ind='cos2', gradient.cols=c("#00AFBB","#E7B700","#FC4E07"),repel=TRUE,
+                 ggtheme=theme_minimal())
+a + labs(title = "Individuals' Contribution to dimensions - Cos^2", x='Dim1 (83.65%)', y='Dim2 (0.89%)') + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.title = element_text(size=18)) + theme(axis.title = element_text(size=16))
+```
+
+It is also possible to represent individuals by their $Cos^{2}$ values.
+
+### Individuals' map by category - FactorMap
+
+```{r eval=FALSE}
+fviz_ellipses(MCA_factominer, 
+              ellipse.type = 'convex', 
+              c("Age", "Gender","Work","Music","Language"), 
+              geom = "point")
+```
+
+```{r echo=FALSE,fig.align='center', fig.height=4.3, warning=FALSE}
+MCA_factominer=MCA(df,ncp=5,graph=F)
+a = fviz_ellipses(MCA_factominer, ellipse.type = 'convex', c("Age", "Gender","Work","Music","Language"), geom = "point")
+a + labs(title = "FactorMap", x='Dim1 (83.65%)', y='Dim2 (0.89%)') + theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+The graph above represents individuals by groups using the levels of the variable. We can clearly see the existence of a relationship between several categories, such as Western languages and the choice of Western music, especially for women under 30, and the preference for the Arabic language and traditional music for women. men over 30.
+
+### Description' Summary of the F1 axis
+
+#### Relationship with variables 
+
+```{r}
+res.desc <- dimdesc(MCA_factominer, axes = c(1,2))
+kable(res.desc[[1]]$quali)
+```
+
+The axis F1 has significant relationships with all variables.
+
+#### Relationship with categories 
+
+```{r}
+kable(res.desc[[1]]$category)
+```
+
+The axis F1 has significant relationships with all variable categories, except *Work-Indifferent*.
+
+
+## **Clustering** 
+
+The aim of this part is the construction of clusters through two algorithms for individuals and categories having common or similar characteristics.
+
+
+### Ascending Hierarchical Clustering (AHC) - Individuals' coordinates on the factorial axes
+
+#### Individuals' coordinates
+
+```{r echo=TRUE, warning=FALSE}
+coord_ind=MCA_factominer$ind$coord
+kable(head(data.frame("."=c(1:45),coord_ind)))
+```
+
+#### Dendrogram
+
+```{r}
+dend <- coord_ind %>%  scale %>% 
+      dist %>% hclust %>% as.dendrogram
+par(cex=0.5, mar=c(5, 8, 4, 1))
+dend %>% set("branches_k_color", k = 3) %>% plot
+par(cex=1)
+dend %>% rect.dendrogram(k=3, border = 8, lty = 2, lwd = 1) 
+```
+
+The Dendrogram proposes three clusters of individuals where each class has a different color. 
+
+The labels of the Dendrogram leaves present the numbers (IDs) of the individuals.
+
+
+### k-means Clustering - Variables' coordinates of the factorial axes 
+#### Variables' coordinates
+
+
+```{r echo=TRUE, warning=FALSE}
+coord_var=MCA_factominer$var$coord
+kable(coord_var)
+```
+
+\newpage
+
+#### Clusters graph
+
+The k-means and AHC  methods are complementary. Since the first does not allow to determine the number of clusters *k*, we can specify it using the result of the previous analysis
+
+```{r message=FALSE, warning=FALSE}
+df_kmeans <- scale(coord_var)
+res.hk <-hkmeans(df_kmeans, 3)
+fviz_cluster(res.hk, frame.type = "norm", frame.level = 0.68) + theme_bw()
+```
+
+- <span style="color:red"> <b> Cluster 1 <b> </span> : Men who prefer traditional music, the Arabic language and working in Morocco after graduation (Generally over 30 years old).
+
+- <span style="color:green"> <b> Cluster 2 <b> </span> : Women who prefer Western music, the English language and are indifferent to work in Morocco or abroad (Usually under 30).
+
+- <span style="color:blue"> <b> Cluster 3 <b> </span> : Individuals who prefer the French language and working abroad.
+
+
+
+
+_________
